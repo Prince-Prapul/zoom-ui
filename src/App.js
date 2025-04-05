@@ -1,182 +1,122 @@
+
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import Quiz from './components/Quiz';
+import InputForm from './components/InputForm';
 
 function App() {
-  const [meetingContext, setMeetingContext] = useState(null);
-  const [quiz, setQuiz] = useState(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState(null);
-  const [score, setScore] = useState(0);
-  const [showResults, setShowResults] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [isZoomSdkReady, setIsZoomSdkReady] = useState(false);
+  const [meetingId, setMeetingId] = useState('');
+  const [quizData, setQuizData] = useState(null);
+  const [quizStarted, setQuizStarted] = useState(false);
+  const [userAnswers, setUserAnswers] = useState([]);
+  const [correctness, setCorrectness] = useState([]);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    // Initialize the Zoom Apps SDK (or mock it for local development)
-    let sdkReady = false; // Flag to prevent multiple calls to setIsZoomSdkReady
+    const mockQuizData = {
+      title: "Meeting Highlights Quiz",
+      questions: [
+        {
+          question: "What is the primary function of Amazon ECR?",
+          options: [
+            "To manage serverless functions directly.",
+            "To securely store and manage container images.",
+            "To deploy Lambda functions without containerization.",
+            "To provide free, unlimited storage for Docker images.",
+          ],
+          correctAnswer: "To securely store and manage container images.",
+        },
+        {
+          question: "In the provided context, where is the Lambda function code, along with its dependencies and scripts, stored?",
+          options: [
+            "In an S3 bucket.",
+            "Directly within the Lambda function.",
+            "In a Docker image stored in Amazon ECR.",
+            "In a local Docker repository.",
+          ],
+          correctAnswer: "In a Docker image stored in Amazon ECR.",
+        },
+        {
+          question: "What is the limitation of Amazon ECR's free tier regarding storage?",
+          options: [
+            "It limits the number of Docker images stored.",
+            "It restricts the number of private repositories.",
+            "It allows only 500 MB of storage per month for private repositories.",
+            "It only allows public repositories.",
+          ],
+          correctAnswer: "It allows only 500 MB of storage per month for private repositories.",
+        },
+        {
+          question: "How much will the project's ECR storage cost approximately, considering the given requirements and pricing?",
+          options: ["$0.00 (because it's under the free tier)", "$10.00", "$2.00", "$20.00"],
+          correctAnswer: "$2.00",
+        },
+        {
+          question: "The project uses PyTorch, a machine learning platform. Why is ECR necessary in this context?",
+          options: [
+            "PyTorch requires ECR for model training.",
+            "ECR simplifies the deployment of PyTorch models as container images.",
+            "ECR is needed to store PyTorch datasets.",
+            "It only allows public repositories.",
+          ],
+          correctAnswer: "ECR simplifies the deployment of PyTorch models as container images.",
+        },
+      ],
+    };
 
-    if (window.zoomSdk) {
-      window.zoomSdk.init({
-        onZoomAppReady: () => {
-          if (!sdkReady) {
-            sdkReady = true;
-            window.zoomSdk.getMeetingContext().then((context) => {
-              setMeetingContext(context);
-              setIsZoomSdkReady(true);
-            });
-          }
-        },
-      });
-    } else {
-      console.warn("Zoom Apps SDK not available. Using mock for local development.");
-      // Mock the zoomSdk and its functions for local development
-      window.zoomSdk = {
-        init: ({ onZoomAppReady }) => {
-          if (!sdkReady) {
-            sdkReady = true;
-            setTimeout(() => {
-              // Mock getMeetingContext() to return a dummy meetingId
-              window.zoomSdk.getMeetingContext = () => Promise.resolve({ meetingId: "MOCK_MEETING_ID" });
-              onZoomAppReady(); // Trigger the callback
-            }, 100);
-          }
-        },
-        getMeetingContext: () => Promise.resolve({ meetingId: "MOCK_MEETING_ID" }), // Mocked
-      };
-      window.zoomSdk.init({
-        onZoomAppReady: () => {
-          if (!sdkReady) {
-            sdkReady = true;
-            setIsZoomSdkReady(true);
-            setMeetingContext({ meetingId: "MOCK_MEETING_ID" });
-          }
-        },
-      });
-    }
+    setQuizData(mockQuizData);
+    setQuizStarted(true);
+    setCorrectness(Array(mockQuizData.questions.length).fill(null));
+    setUserAnswers(Array(mockQuizData.questions.length).fill(null));
+    setSubmitted(false);
   }, []);
 
-  const fetchQuiz = async () => {
-    if (!meetingContext?.meetingId) {
-      setError('Meeting ID not available.');
-      return;
-    }
+  const handleAnswer = (questionIndex, selectedAnswer) => {
+    if (submitted) return;
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const backendUrl = 'http://localhost:8000/generate_mcq'; // Your backend URL
-      const response = await fetch(backendUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: 'Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods with the help of chlorophyll. During this process, light energy is converted into chemical energy, which is stored in the form of glucose. Carbon dioxide and water are used as raw materials, and oxygen is released as a byproduct. Photosynthesis typically occurs in the chloroplasts of plant cells.',  // Placeholder text! Replace with actual transcript fetching
-          num_questions: 2,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData?.detail || `Failed to fetch quiz: ${response.status}`);
-      }
-
-      const quizData = await response.json();
-      setQuiz(quizData);
-      setCurrentQuestionIndex(0);
-      setShowResults(false);
-      setScore(0);
-    } catch (err) {
-      setError(err.message);
-      setQuiz(null);
-    } finally {
-      setLoading(false);
-    }
+    const newAnswers = [...userAnswers];
+    if (newAnswers[questionIndex] !== null) return;
+    newAnswers[questionIndex] = selectedAnswer;
+    setUserAnswers(newAnswers);
   };
 
-  const handleAnswerSelect = (answer) => {
-    setSelectedAnswer(answer);
-  };
-
-  const handleNextQuestion = () => {
-    if (!quiz) return;
-
-    if (selectedAnswer === quiz[currentQuestionIndex].correct_answer) {
-      setScore((prevScore) => prevScore + 1);
-    }
-
-    setSelectedAnswer(null);
-    setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
-
-    if (currentQuestionIndex === quiz.length - 1) {
-      setShowResults(true);
-    }
+  const handleSubmitQuiz = () => {
+    const newCorrectness = quizData.questions.map((question, index) =>
+      userAnswers[index] === question.correctAnswer
+    );
+    setCorrectness(newCorrectness);
+    setSubmitted(true);
   };
 
   const handleRestartQuiz = () => {
-    setQuiz(null);
-    setCurrentQuestionIndex(0);
-    setSelectedAnswer(null);
-    setScore(0);
-    setShowResults(false);
+    setQuizData(null);
+    setQuizStarted(false);
+    setUserAnswers([]);
+    setCorrectness([]);
+    setSubmitted(false);
   };
 
-  if (loading) {
-    return <div>Loading quiz...</div>;
-  }
-
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
-
-  // Only show the "Generate Quiz" button AFTER the SDK is ready
-  if (!isZoomSdkReady) {
-    return <div>Initializing Zoom App...</div>;
-  }
-
-  if (!quiz) {
-    return (
-      <div className="App">
-        <h1>QuizBot for Zoom</h1>
-        {meetingContext?.meetingId && <p>Meeting ID: {meetingContext.meetingId}</p>}
-        <button onClick={fetchQuiz}>Generate Quiz</button>
-      </div>
-    );
-  }
-
-  const currentQuestion = quiz[currentQuestionIndex];
-
-  if (showResults) {
-    return (
-      <div className="App">
-        <h2>Quiz Results</h2>
-        <p>Your Score: {score} / {quiz.length}</p>
-        <button onClick={handleRestartQuiz}>Restart Quiz</button>
-      </div>
-    );
-  }
+  const calculateScore = () => {
+    return correctness.filter(Boolean).length;
+  };
 
   return (
     <div className="App">
-      <h2>Question {currentQuestionIndex + 1} / {quiz.length}</h2>
-      <p>{currentQuestion.question}</p>
-      <ul>
-        {currentQuestion.options.map((option, index) => (
-          <li key={index}>
-            <button
-              onClick={() => handleAnswerSelect(option)}
-              className={selectedAnswer === option ? 'selected' : ''}
-            >
-              {option}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <button onClick={handleNextQuestion} disabled={!selectedAnswer}>
-        Next
-      </button>
+      <h1>QuizBot for Zoom</h1>
+      {!quizStarted ? (
+        <InputForm meetingId={meetingId} setMeetingId={setMeetingId} onStartQuiz={() => {}} />
+      ) : (
+        <Quiz
+          quizData={quizData}
+          userAnswers={userAnswers}
+          handleAnswer={handleAnswer}
+          correctness={correctness}
+          calculateScore={calculateScore}
+          onRestartQuiz={handleRestartQuiz}
+          submitted={submitted}
+          handleSubmitQuiz={handleSubmitQuiz}
+        />
+      )}
     </div>
   );
 }
