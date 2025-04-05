@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './App.css';
 import Quiz from './components/Quiz';
 import InputForm from './components/InputForm';
+import axios from 'axios';
 
 function App() {
   const [meetingId, setMeetingId] = useState('');
@@ -11,8 +12,8 @@ function App() {
   const [correctness, setCorrectness] = useState([]);
   const [submitted, setSubmitted] = useState(false);
 
-  const mockQuizData = {  //  <--  Define mockQuizData outside useEffect
-    title: "Meeting Highlights Quiz",
+  const mockQuizData = {
+    title: "Mock Quiz",
     questions: [
       {
         question: "What is the primary function of Amazon ECR?",
@@ -25,7 +26,7 @@ function App() {
         correctAnswer: "To securely store and manage container images.",
       },
       {
-        question: "In the provided context, where is the Lambda function code, along with its dependencies and scripts, stored?",
+        question: "Where is the Lambda function code stored?",
         options: [
           "In an S3 bucket.",
           "Directly within the Lambda function.",
@@ -33,53 +34,45 @@ function App() {
           "In a local Docker repository.",
         ],
         correctAnswer: "In a Docker image stored in Amazon ECR.",
-      },
-      {
-        question: "What is the limitation of Amazon ECR's free tier regarding storage?",
-        options: [
-          "It limits the number of Docker images stored.",
-          "It restricts the number of private repositories.",
-          "It allows only 500 MB of storage per month for private repositories.",
-          "It only allows public repositories.",
-        ],
-        correctAnswer: "It allows only 500 MB of storage per month for private repositories.",
-      },
-      {
-        question: "How much will the project's ECR storage cost approximately, considering the given requirements and pricing?",
-        options: ["$0.00 (because it's under the free tier)", "$10.00", "$2.00", "$20.00"],
-        correctAnswer: "$2.00",
-      },
-      {
-        question: "The project uses PyTorch, a machine learning platform. Why is ECR necessary in this context?",
-        options: [
-          "PyTorch requires ECR for model training.",
-          "ECR simplifies the deployment of PyTorch models as container images.",
-          "ECR is needed to store PyTorch datasets.",
-          "It only allows public repositories.",
-        ],
-        correctAnswer: "ECR simplifies the deployment of PyTorch models as container images.",
-      },
+      }
     ],
   };
 
-  useEffect(() => {
-    setQuizData(mockQuizData);
-    setCorrectness(Array(mockQuizData.questions.length).fill(null));
-    setUserAnswers(Array(mockQuizData.questions.length).fill(null));
-    setSubmitted(false);
-  }, []);
+  const handleStartQuiz = async () => {
+    // Allow fallback to mock data
+    if (meetingId === "mock") {
+      setQuizData(mockQuizData);
+      setQuizStarted(true);
+      setCorrectness(Array(mockQuizData.questions.length).fill(null));
+      setUserAnswers(Array(mockQuizData.questions.length).fill(null));
+      setSubmitted(false);
+      return;
+    }
 
-  const handleStartQuiz = () => {
-    setQuizData(mockQuizData);  //  <--  Reset quizData here
-    setQuizStarted(true);
-    setCorrectness(Array(mockQuizData.questions.length).fill(null));
-    setUserAnswers(Array(mockQuizData.questions.length).fill(null));
-    setSubmitted(false);
+    try {
+      const response = await axios.get(`http://localhost:3000/quiz/${meetingId}`);
+      const realQuizData = {
+        title: `Quiz for Meeting ${meetingId}`,
+        questions: response.data.map(q => ({
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correct_answer,
+        })),
+      };
+
+      setQuizData(realQuizData);
+      setQuizStarted(true);
+      setCorrectness(Array(realQuizData.questions.length).fill(null));
+      setUserAnswers(Array(realQuizData.questions.length).fill(null));
+      setSubmitted(false);
+    } catch (error) {
+      console.error("❌ Failed to load quiz:", error);
+      alert("Failed to load quiz. Please check your meeting ID or try again.");
+    }
   };
 
   const handleAnswer = (questionIndex, selectedAnswer) => {
     if (submitted) return;
-
     const newAnswers = [...userAnswers];
     if (newAnswers[questionIndex] !== null) return;
     newAnswers[questionIndex] = selectedAnswer;
@@ -95,7 +88,7 @@ function App() {
   };
 
   const handleRestartQuiz = () => {
-    setQuizData(mockQuizData);  //  <--  Reset quizData here too!
+    setQuizData(null);
     setQuizStarted(false);
     setUserAnswers([]);
     setCorrectness([]);
