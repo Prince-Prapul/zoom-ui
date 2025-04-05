@@ -4,7 +4,7 @@ import zoomLogo from '../zoom-logo.png'; // Import the Zoom logo (replace with y
 function InputForm({ meetingId, setMeetingId, onStartQuiz }) {
   const [displayedGreeting, setDisplayedGreeting] = useState('');
   const fullGreeting = "Welcome to QuizBot! Please enter the Meeting ID to begin.";
-  const typingSpeed = 100; // Adjust for typing speed (milliseconds per character)
+  const typingSpeed = 0; // Adjust for typing speed (milliseconds per character)
 
   useEffect(() => {
     let charIndex = 0;

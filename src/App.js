@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import Quiz from './components/Quiz';
@@ -65,11 +64,14 @@ function App() {
     };
 
     setQuizData(mockQuizData);
-    setQuizStarted(true);
     setCorrectness(Array(mockQuizData.questions.length).fill(null));
     setUserAnswers(Array(mockQuizData.questions.length).fill(null));
     setSubmitted(false);
   }, []);
+
+  const handleStartQuiz = () => {
+    setQuizStarted(true);
+  };
 
   const handleAnswer = (questionIndex, selectedAnswer) => {
     if (submitted) return;
@@ -104,7 +106,7 @@ function App() {
     <div className="App">
       <h1>QuizBot for Zoom</h1>
       {!quizStarted ? (
-        <InputForm meetingId={meetingId} setMeetingId={setMeetingId} onStartQuiz={() => {}} />
+        <InputForm meetingId={meetingId} setMeetingId={setMeetingId} onStartQuiz={handleStartQuiz} />
       ) : (
         <Quiz
           quizData={quizData}
